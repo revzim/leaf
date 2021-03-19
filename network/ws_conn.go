@@ -2,28 +2,32 @@ package network
 
 import (
 	"errors"
-	"github.com/gorilla/websocket"
-	"github.com/name5566/leaf/log"
 	"net"
 	"sync"
+
+	"github.com/gorilla/websocket"
+	"github.com/revzim/leaf/log"
 )
 
-type WebsocketConnSet map[*websocket.Conn]struct{}
+type (
+	WebsocketConnSet map[*websocket.Conn]struct{}
 
-type WSConn struct {
-	sync.Mutex
-	conn      *websocket.Conn
-	writeChan chan []byte
-	maxMsgLen uint32
-	closeFlag bool
-}
+	WSConn struct {
+		sync.Mutex
+		conn      *websocket.Conn
+		writeChan chan []byte
+		maxMsgLen uint32
+		closeFlag bool
+		data      map[string]interface{}
+	}
+)
 
-func newWSConn(conn *websocket.Conn, pendingWriteNum int, maxMsgLen uint32) *WSConn {
+func newWSConn(conn *websocket.Conn, pendingWriteNum int, maxMsgLen uint32, data map[string]interface{}) *WSConn {
 	wsConn := new(WSConn)
 	wsConn.conn = conn
 	wsConn.writeChan = make(chan []byte, pendingWriteNum)
 	wsConn.maxMsgLen = maxMsgLen
-
+	wsConn.data = data
 	go func() {
 		for b := range wsConn.writeChan {
 			if b == nil {
@@ -95,6 +99,17 @@ func (wsConn *WSConn) RemoteAddr() net.Addr {
 func (wsConn *WSConn) ReadMsg() ([]byte, error) {
 	_, b, err := wsConn.conn.ReadMessage()
 	return b, err
+}
+
+// goroutine not safe
+func (wsConn *WSConn) SetData(data map[string]interface{}) {
+	wsConn.Lock()
+	defer wsConn.Unlock()
+	wsConn.data = data
+}
+
+func (wsConn *WSConn) GetData() map[string]interface{} {
+	return wsConn.data
 }
 
 // args must not be modified by the others goroutines

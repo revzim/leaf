@@ -1,12 +1,14 @@
 package gate
 
 import (
-	"github.com/name5566/leaf/chanrpc"
-	"github.com/name5566/leaf/log"
-	"github.com/name5566/leaf/network"
 	"net"
+	"net/http"
 	"reflect"
 	"time"
+
+	"github.com/revzim/leaf/chanrpc"
+	"github.com/revzim/leaf/log"
+	"github.com/revzim/leaf/network"
 )
 
 type Gate struct {
@@ -39,8 +41,15 @@ func (gate *Gate) Run(closeSig chan bool) {
 		wsServer.HTTPTimeout = gate.HTTPTimeout
 		wsServer.CertFile = gate.CertFile
 		wsServer.KeyFile = gate.KeyFile
+		wsServer.OriginChecker = func(r *http.Request) bool {
+			// fmt.Printf("wsserver origin checker req: %+v\n", r)
+			/*
+				wsserver origin checker req: &{Method:GET URL:/?token=1597767591798_TEST Proto:HTTP/1.1 ProtoMajor:1 ProtoMinor:1 Header:map[Accept-Encoding:[gzip, deflate, br] Accept-Language:[en-US,en;q=0.9] Cache-Control:[no-cache] Connection:[Upgrade] Origin:[http://localhost:8081] Pragma:[no-cache] Sec-Websocket-Extensions:[permessage-deflate; client_max_window_bits] Sec-Websocket-Key:[OSpYoaLqKYuUkJ866I2EPw==] Sec-Websocket-Version:[13] Upgrade:[websocket] User-Agent:[Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4215.0 Safari/537.36]] Body:{} GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:localhost:8085 Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:[::1]:53679 RequestURI:/?token=1597767591798_TEST TLS:<nil> Cancel:<nil> Response:<nil> ctx:0xc0002c8100}
+			*/
+			return true
+		}
 		wsServer.NewAgent = func(conn *network.WSConn) network.Agent {
-			a := &agent{conn: conn, gate: gate}
+			a := &agent{conn: conn, gate: gate, userData: conn.GetData()}
 			if gate.AgentChanRPC != nil {
 				gate.AgentChanRPC.Go("NewAgent", a)
 			}
@@ -96,7 +105,6 @@ func (a *agent) Run() {
 			log.Debug("read message: %v", err)
 			break
 		}
-
 		if a.gate.Processor != nil {
 			msg, err := a.gate.Processor.Unmarshal(data)
 			if err != nil {

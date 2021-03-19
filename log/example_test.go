@@ -1,8 +1,9 @@
 package log_test
 
 import (
-	"github.com/name5566/leaf/log"
 	l "log"
+
+	"github.com/revzim/leaf/log"
 )
 
 func Example() {

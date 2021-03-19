@@ -2,12 +2,14 @@ package network
 
 import (
 	"crypto/tls"
-	"github.com/gorilla/websocket"
-	"github.com/name5566/leaf/log"
+	"fmt"
 	"net"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/revzim/leaf/log"
 )
 
 type WSServer struct {
@@ -21,6 +23,7 @@ type WSServer struct {
 	NewAgent        func(*WSConn) Agent
 	ln              net.Listener
 	handler         *WSHandler
+	OriginChecker   func(r *http.Request) bool
 }
 
 type WSHandler struct {
@@ -35,6 +38,7 @@ type WSHandler struct {
 }
 
 func (handler *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("ws_server: %s %+v\n", r.URL.RequestURI(), r.URL)
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", 405)
 		return
@@ -63,11 +67,35 @@ func (handler *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	handler.conns[conn] = struct{}{}
 	handler.mutexConns.Unlock()
-
-	wsConn := newWSConn(conn, handler.pendingWriteNum, handler.maxMsgLen)
+	/*
+		uIdentifiers := &UserIdentifier{}
+		for k, val := range qVals {
+			switch k {
+			case "token":
+				uIdentifiers.Token = val[0]
+				break
+			case "id":
+				uIdentifiers.ID = val[0]
+				break
+			default:
+				log.Release("WSHandler unhandled query: %s | %v", k, val)
+				break
+			}
+			// fmt.Println(k, val)
+		}
+	*/
+	qVals := r.URL.Query()
+	uData := make(map[string]interface{})
+	// fmt.Printf("ws_server qvals: %+v\n", qVals)
+	for k, val := range qVals {
+		uData[k] = val[0]
+		// fmt.Println(k, val)
+	}
+	wsConn := newWSConn(conn, handler.pendingWriteNum, handler.maxMsgLen, uData)
 	agent := handler.newAgent(wsConn)
-	agent.Run()
 
+	wsConn.SetData(uData)
+	agent.Run()
 	// cleanup
 	wsConn.Close()
 	handler.mutexConns.Lock()
@@ -125,7 +153,7 @@ func (server *WSServer) Start() {
 		conns:           make(WebsocketConnSet),
 		upgrader: websocket.Upgrader{
 			HandshakeTimeout: server.HTTPTimeout,
-			CheckOrigin:      func(_ *http.Request) bool { return true },
+			CheckOrigin:      server.OriginChecker,
 		},
 	}
 

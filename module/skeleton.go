@@ -1,11 +1,12 @@
 package module
 
 import (
-	"github.com/name5566/leaf/chanrpc"
-	"github.com/name5566/leaf/console"
-	"github.com/name5566/leaf/go"
-	"github.com/name5566/leaf/timer"
 	"time"
+
+	"github.com/revzim/leaf/chanrpc"
+	"github.com/revzim/leaf/console"
+	g "github.com/revzim/leaf/go"
+	"github.com/revzim/leaf/timer"
 )
 
 type Skeleton struct {

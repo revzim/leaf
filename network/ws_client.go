@@ -1,10 +1,12 @@
 package network
 
 import (
-	"github.com/gorilla/websocket"
-	"github.com/name5566/leaf/log"
+	"fmt"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/revzim/leaf/log"
 )
 
 type WSClient struct {
@@ -85,7 +87,7 @@ func (client *WSClient) dial() *websocket.Conn {
 
 func (client *WSClient) connect() {
 	defer client.wg.Done()
-
+	fmt.Printf("WSClient connect: %+v", client)
 reconnect:
 	conn := client.dial()
 	if conn == nil {
@@ -102,7 +104,7 @@ reconnect:
 	client.conns[conn] = struct{}{}
 	client.Unlock()
 
-	wsConn := newWSConn(conn, client.PendingWriteNum, client.MaxMsgLen)
+	wsConn := newWSConn(conn, client.PendingWriteNum, client.MaxMsgLen, make(map[string]interface{}))
 	agent := client.NewAgent(wsConn)
 	agent.Run()
 
