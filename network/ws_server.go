@@ -38,7 +38,7 @@ type WSHandler struct {
 }
 
 func (handler *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("ws_server: %s %+v\n", r.URL.RequestURI(), r.URL)
+	// fmt.Printf("ws_server: %s %+v\n", r.URL.RequestURI(), r.URL)
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", 405)
 		return
